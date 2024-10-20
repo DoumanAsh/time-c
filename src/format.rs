@@ -2,28 +2,34 @@
 
 use core::fmt;
 
+use crate::Time;
 use crate::sys::tm;
 
 #[repr(transparent)]
 ///RFC-3339 encoder for tm
-pub struct Rfc3339<'a>(pub &'a tm);
+pub struct Rfc3339<'a, T>(pub &'a T);
 
-impl fmt::Display for Rfc3339<'_> {
+impl fmt::Display for Rfc3339<'_, tm> {
     #[inline(always)]
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let tm {
-            tm_sec,
-            tm_min,
-            tm_hour,
-            tm_mday,
-            mut tm_mon,
-            mut tm_year,
+        let normalized = self.0.normalize();
+        fmt::Display::fmt(&Rfc3339(&normalized), fmt)
+    }
+}
+
+impl fmt::Display for Rfc3339<'_, Time> {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Time {
+            sec,
+            min,
+            hour,
+            month_day,
+            month,
+            year,
             ..
         } = self.0;
-        //month starts from 0 so add 1
-        tm_mon = tm_mon.wrapping_add(1);
-        //tm_year is relative to 1900
-        tm_year = tm_year.saturating_add(1900);
-        fmt.write_fmt(format_args!("{tm_year:04}-{tm_mon:02}-{tm_mday:02}T{tm_hour:02}:{tm_min:02}:{tm_sec:02}Z"))
+
+        fmt.write_fmt(format_args!("{year:04}-{month:02}-{month_day:02}T{hour:02}:{min:02}:{sec:02}Z"))
     }
 }

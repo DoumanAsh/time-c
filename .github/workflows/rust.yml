@@ -55,4 +55,4 @@ jobs:
           cp cross $HOME/.cargo/bin
 
       - name: Test ${{ matrix.target }}
-        run: cross test -- --nocapture
+        run: cross test

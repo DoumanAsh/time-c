@@ -1,6 +1,8 @@
 //!Raw system types and functions
 #![allow(non_camel_case_types)]
 
+use crate::Time;
+
 use core::{mem, ptr};
 use core::ffi::{c_void, c_int, c_long};
 
@@ -8,7 +10,9 @@ use core::ffi::{c_void, c_int, c_long};
 ///
 ///This crate supports 64bit time only
 ///
-///Your system uses 32bit for time()? Don't compile then
+///## Note
+///
+///Your system uses 32bit for time()? Don't use this crate then
 pub type time_t = i64;
 
 #[repr(C)]
@@ -33,9 +37,39 @@ pub struct tm {
     pub tm_yday: c_int,
     /// Daylight Saving Time flag. Non-zero value indicates DST is present.
     pub tm_isdst: c_int,
-    //Other fields are non-stand and depend on platform
+    //Other fields are non-standard and depend on platform
     //So don't care about these fields
     _reserved: mem::MaybeUninit<[u8; mem::size_of::<c_long>() + mem::size_of::<*const c_void>() + mem::size_of::<c_int>()]>,
+}
+
+impl tm {
+    ///Normalizes time to a more convenient struct for interpreting time components.
+    pub const fn normalize(&self) -> Time {
+        let tm {
+            tm_sec,
+            tm_min,
+            tm_hour,
+            tm_mday,
+            tm_mon,
+            tm_year,
+            tm_wday,
+            tm_yday,
+            tm_isdst,
+            ..
+        } = self;
+
+        Time {
+            sec: *tm_sec as _,
+            min: *tm_min as _,
+            hour: *tm_hour as _,
+            month_day: *tm_mday as _,
+            month: (*tm_mon as u8).saturating_add(1),
+            year: (*tm_year as u16).saturating_add(1900),
+            week_day: *tm_wday as _,
+            day: *tm_yday as _,
+            is_dst: *tm_isdst > 0,
+        }
+    }
 }
 
 extern "C" {
