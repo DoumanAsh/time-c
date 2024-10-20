@@ -1,6 +1,6 @@
 [package]
 name = "time-c"
-version = "1.0.0"
+version = "1.0.0-alpha.1"
 edition = "2018"
 description = "Wrapper for time functions of C standard library"
 readme = "README.md"
@@ -12,5 +12,5 @@ include = [
     "LICENSE",
     "README.md"
 ]
-keywords = ["libc", "ffi", "bindings", "operating", "system"]
+keywords = ["ffi", "bindings", "operating", "system", "time"]
 categories = ["external-ffi-bindings", "no-std", "os"]
