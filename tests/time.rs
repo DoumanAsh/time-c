@@ -1,4 +1,4 @@
-use time_c::sys::{get_time, utc_time};
+use time_c::sys::{get_time, utc_time, utc_now};
 use time_c::format::Rfc3339;
 
 #[test]
@@ -23,4 +23,10 @@ fn should_get_current_time() {
     let normalized_repr = normalized.rfc3339().to_string();
     println!("normalized={tm_repr}");
     assert_eq!(tm_repr, normalized_repr);
+}
+
+#[test]
+fn should_get_utc_now() {
+    let now = utc_now().expect("get utc now");
+    assert_ne!(now.as_secs(), 0);
 }

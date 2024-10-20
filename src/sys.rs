@@ -1,9 +1,10 @@
 //!Raw system types and functions
 #![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
 
 use crate::Time;
 
-use core::{mem, ptr};
+use core::{mem, ptr, time};
 use core::ffi::{c_void, c_int, c_long};
 
 ///Alias to time_t.
@@ -78,7 +79,7 @@ extern "C" {
     pub fn time(time: *mut time_t) -> time_t;
 }
 
-///Gets current UTC time, if available.
+///Gets current UTC time in seconds, if available.
 pub fn get_time() -> Option<time_t> {
     let result = unsafe {
         time(ptr::null_mut())
@@ -130,3 +131,63 @@ pub fn utc_time(timer: &time_t) -> Option<tm> {
         }
     }
 }
+
+#[cfg(windows)]
+///Gets UTC time, if available
+pub fn utc_now() -> Option<time::Duration> {
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    pub struct FILETIME {
+        pub dwLowDateTime: u32,
+        pub dwHighDateTime: u32,
+    }
+
+    #[repr(C)]
+    pub union ULARGE_INTEGER {
+        file_time: FILETIME,
+        integer: u64,
+    }
+
+    extern "system" {
+        fn GetSystemTimeAsFileTime(time: *mut FILETIME);
+    }
+
+    let time = unsafe {
+        let mut time = mem::MaybeUninit::<ULARGE_INTEGER>::uninit();
+        GetSystemTimeAsFileTime(ptr::addr_of_mut!((*time.as_mut_ptr()).file_time));
+        time.assume_init().integer.saturating_sub(116_444_736_000_000_000)
+    };
+
+    Some(time::Duration::new(
+        time / 10_000_000,
+        ((time % 10_000_000) * 100) as _
+    ))
+}
+
+#[cfg(unix)]
+///Gets UTC time, if available
+pub fn utc_now() -> Option<time::Duration> {
+    #[repr(C)]
+    struct timespec {
+        tv_sec: time_t,
+        #[cfg(all(target_arch = "x86_64", target_pointer_width = "32"))]
+        tv_nanos: i64,
+        #[cfg(not(all(target_arch = "x86_64", target_pointer_width = "32")))]
+        tv_nanos: c_long,
+    }
+
+    extern "C" {
+        fn timespec_get(time: *mut timespec, base: c_int) -> c_int;
+    }
+
+    let time = unsafe {
+        let mut time = mem::MaybeUninit::uninit();
+        if timespec_get(time.as_mut_ptr(), 1) == 0 {
+            return None;
+        }
+        time.assume_init()
+    };
+
+    Some(time::Duration::new(time.tv_sec as _, time.tv_nanos as _))
+}
+
