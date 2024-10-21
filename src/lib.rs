@@ -33,9 +33,15 @@ pub struct Time {
 
 impl Time {
     #[inline(always)]
+    ///Attempts to parse provided unix time and returns new instance of self
+    pub fn parse_unix(secs: &sys::time_t) -> Option<Self> {
+        sys::parse_unix(secs).map(|time| time.normalize())
+    }
+
+    #[inline(always)]
     ///Gets current UTC time
     pub fn now_utc() -> Option<Self> {
-        sys::get_time().and_then(|time| sys::utc_time(&time)).map(|time| time.normalize())
+        sys::get_time().and_then(|time| Self::parse_unix(&time))
     }
 
     #[inline(always)]

@@ -94,7 +94,7 @@ pub fn get_time() -> Option<time_t> {
 
 #[cfg(windows)]
 ///Parses UTC time into tm struct, if possible
-pub fn utc_time(timer: &time_t) -> Option<tm> {
+pub fn parse_unix(timer: &time_t) -> Option<tm> {
     extern "C" {
         #[link_name = "_gmtime64_s"]
         pub fn gmtime_s(buf: *mut tm, timer: *const time_t) -> c_int;
@@ -114,7 +114,7 @@ pub fn utc_time(timer: &time_t) -> Option<tm> {
 
 #[cfg(not(windows))]
 ///Parses UTC time into tm struct, if possible
-pub fn utc_time(timer: &time_t) -> Option<tm> {
+pub fn parse_unix(timer: &time_t) -> Option<tm> {
     extern "C" {
         pub fn gmtime_r(timer: *const time_t, buf: *mut tm) -> *mut tm;
     }
