@@ -43,6 +43,13 @@ pub struct tm {
     _reserved: mem::MaybeUninit<[u8; mem::size_of::<c_long>() + mem::size_of::<*const c_void>() + mem::size_of::<c_int>()]>,
 }
 
+impl PartialEq for tm {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.tm_sec == other.tm_sec && self.tm_min == other.tm_min && self.tm_hour == other.tm_hour && self.tm_mday == other.tm_mday && self.tm_mon == other.tm_mon && self.tm_year == other.tm_year && self.tm_wday == other.tm_wday && self.tm_yday == other.tm_yday
+    }
+}
+
 impl tm {
     ///Normalizes time to a more convenient struct for interpreting time components.
     pub const fn normalize(&self) -> Time {
@@ -112,7 +119,7 @@ pub fn parse_unix(timer: &time_t) -> Option<tm> {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
 ///Parses UTC time into tm struct, if possible
 pub fn parse_unix(timer: &time_t) -> Option<tm> {
     extern "C" {
@@ -130,6 +137,98 @@ pub fn parse_unix(timer: &time_t) -> Option<tm> {
             Some(tm.assume_init())
         }
     }
+}
+
+#[cfg(all(not(unix), not(windows)))]
+///Parses UTC time into tm struct, if possible
+pub fn parse_unix(timer: &time_t) -> Option<tm> {
+    use core::convert::TryInto;
+
+    const LEAPOCH: i64 = 946684800 + 86400 * (31+29);
+    const DAYS_PER_400Y: i64 = 365 * 400 + 97;
+    const DAYS_PER_100Y: i64 = 365 * 100 + 24;
+    const DAYS_PER_4Y: i64 = 365 * 4 + 1;
+    const DAYS_IN_MONTH: [i64; 12] = [31,30,31,30,31,31,30,31,30,31,31,29];
+
+    let secs = timer.checked_sub(LEAPOCH)?;
+    let mut days = secs / 86400;
+    let mut rem_secs = secs % 86400;
+    if rem_secs < 0 {
+        rem_secs += 86400;
+        days -= 1;
+    }
+
+	let mut wday = (3 + days) % 7;
+	if wday < 0 {
+        wday += 7;
+    }
+
+	let mut qc_cycles = days / DAYS_PER_400Y;
+	let mut rem_days = days % DAYS_PER_400Y;
+	if rem_days < 0 {
+		rem_days += DAYS_PER_400Y;
+		qc_cycles -= 1;
+	}
+
+	let mut c_cycles = rem_days / DAYS_PER_100Y;
+	if c_cycles == 4 {
+        c_cycles -= 1;
+    };
+	rem_days -= c_cycles * DAYS_PER_100Y;
+
+	let mut q_cycles = rem_days / DAYS_PER_4Y;
+	if q_cycles == 25 {
+        q_cycles -= 1;
+    };
+	rem_days -= q_cycles * DAYS_PER_4Y;
+
+	let mut rem_years = rem_days / 365;
+	if rem_years == 4 {
+        rem_years -= 1;
+    }
+	rem_days -= rem_years * 365;
+
+	let leap = if rem_years == 0 && (q_cycles != 0 || c_cycles == 0) {
+        1
+    } else {
+        0
+    };
+	let mut yday = rem_days + 31 + 28 + leap;
+	if yday >= 365+leap {
+        yday -= 365+leap;
+    }
+
+	let mut years = rem_years + 4*q_cycles + 100*c_cycles + 400*qc_cycles;
+
+    let mut months: c_int = 0;
+    for (idx, days_month) in DAYS_IN_MONTH.iter().enumerate() {
+        if rem_days >= *days_month {
+            rem_days -= *days_month;
+        } else {
+            months = idx as _;
+            break;
+        }
+    }
+
+	if months >= 10 {
+		months -= 12;
+		years += 1;
+	}
+
+    Some(tm {
+        tm_year: (years + 100).try_into().ok()?,
+        tm_mon: (months + 2) as _,
+        tm_mday: (rem_days + 1) as _,
+        tm_wday: wday as _,
+        tm_yday: yday as _,
+
+        tm_hour: (rem_secs / 3600) as _,
+        tm_min: (rem_secs / 60 % 60) as _,
+        tm_sec: (rem_secs % 60) as _,
+
+        tm_isdst: 0,
+        _reserved: mem::MaybeUninit::uninit(),
+    })
 }
 
 #[cfg(windows)]
