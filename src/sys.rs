@@ -158,47 +158,47 @@ pub fn parse_unix(timer: &time_t) -> Option<tm> {
         days -= 1;
     }
 
-	let mut wday = (3 + days) % 7;
-	if wday < 0 {
+    let mut wday = (3 + days) % 7;
+    if wday < 0 {
         wday += 7;
     }
 
-	let mut qc_cycles = days / DAYS_PER_400Y;
-	let mut rem_days = days % DAYS_PER_400Y;
-	if rem_days < 0 {
-		rem_days += DAYS_PER_400Y;
-		qc_cycles -= 1;
-	}
+    let mut qc_cycles = days / DAYS_PER_400Y;
+    let mut rem_days = days % DAYS_PER_400Y;
+    if rem_days < 0 {
+        rem_days += DAYS_PER_400Y;
+        qc_cycles -= 1;
+    }
 
-	let mut c_cycles = rem_days / DAYS_PER_100Y;
-	if c_cycles == 4 {
+    let mut c_cycles = rem_days / DAYS_PER_100Y;
+    if c_cycles == 4 {
         c_cycles -= 1;
     };
-	rem_days -= c_cycles * DAYS_PER_100Y;
+    rem_days -= c_cycles * DAYS_PER_100Y;
 
-	let mut q_cycles = rem_days / DAYS_PER_4Y;
-	if q_cycles == 25 {
+    let mut q_cycles = rem_days / DAYS_PER_4Y;
+    if q_cycles == 25 {
         q_cycles -= 1;
     };
-	rem_days -= q_cycles * DAYS_PER_4Y;
+    rem_days -= q_cycles * DAYS_PER_4Y;
 
-	let mut rem_years = rem_days / 365;
-	if rem_years == 4 {
+    let mut rem_years = rem_days / 365;
+    if rem_years == 4 {
         rem_years -= 1;
     }
-	rem_days -= rem_years * 365;
+    rem_days -= rem_years * 365;
 
-	let leap = if rem_years == 0 && (q_cycles != 0 || c_cycles == 0) {
+    let leap = if rem_years == 0 && (q_cycles != 0 || c_cycles == 0) {
         1
     } else {
         0
     };
-	let mut yday = rem_days + 31 + 28 + leap;
-	if yday >= 365+leap {
+    let mut yday = rem_days + 31 + 28 + leap;
+    if yday >= 365+leap {
         yday -= 365+leap;
     }
 
-	let mut years = rem_years + 4*q_cycles + 100*c_cycles + 400*qc_cycles;
+    let mut years = rem_years + 4*q_cycles + 100*c_cycles + 400*qc_cycles;
 
     let mut months: c_int = 0;
     for (idx, days_month) in DAYS_IN_MONTH.iter().enumerate() {
@@ -210,10 +210,10 @@ pub fn parse_unix(timer: &time_t) -> Option<tm> {
         }
     }
 
-	if months >= 10 {
-		months -= 12;
-		years += 1;
-	}
+    if months >= 10 {
+        months -= 12;
+        years += 1;
+    }
 
     Some(tm {
         tm_year: (years + 100).try_into().ok()?,
